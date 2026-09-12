@@ -27,7 +27,7 @@ jobs:
           --health-retries 10
     env:
       DATABASE_URL: postgresql://almacensga:almacensga_ci@localhost:5432/almacensga?schema=public
-      NODE_ENV: test
+      NODE_ENV: development
     steps:
       - name: Checkout
         uses: actions/checkout@v4
