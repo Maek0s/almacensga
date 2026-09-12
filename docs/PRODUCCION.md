@@ -50,4 +50,6 @@ docker compose -f docker-compose.production.yml ps
 
 El workflow `.github/workflows/ci.yml` ejecuta instalación limpia, esquema demo, lint, build, pruebas API, smoke HTTP y rendimiento en cada push a `main`/`master` y en cada pull request.
 
+El workflow `.github/workflows/pages.yml` publica el frontend en GitHub Pages como preview. Ese enlace sirve la interfaz React, pero no ejecuta Express ni PostgreSQL: el login y las operaciones necesitan el backend publicado mediante el Compose de producción o un proveedor equivalente. GitHub Pages puede publicar desde Actions si se habilita como fuente en Settings → Pages; en repositorios privados depende del plan de GitHub.
+
 La publicación del repositorio requiere una cuenta autenticada y una URL de repositorio GitHub. La sesión local de GitHub detectada actualmente no es válida y no hay remoto configurado.
