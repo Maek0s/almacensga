@@ -1,0 +1,17 @@
+{
+  auto_https off
+}
+
+http://almacensga.es {
+  handle /api/* {
+    reverse_proxy api:3000
+  }
+
+  handle {
+    reverse_proxy {$WEB_UPSTREAM}
+  }
+}
+
+http://api.almacensga.es {
+  reverse_proxy api:3000
+}

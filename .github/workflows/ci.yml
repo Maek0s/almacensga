@@ -1,0 +1,64 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: almacensga
+          POSTGRES_USER: almacensga
+          POSTGRES_PASSWORD: almacensga_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U almacensga -d almacensga"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://almacensga:almacensga_ci@localhost:5432/almacensga?schema=public
+      NODE_ENV: test
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Use Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Prepare database
+        run: |
+          npm run prisma:push --workspace=@almacensga/api -- --accept-data-loss
+          npm run prisma:seed --workspace=@almacensga/api
+      - name: Lint
+        run: npm run lint
+      - name: Build
+        run: npm run build
+      - name: API tests
+        run: npm test --workspace=@almacensga/api
+      - name: Start API for smoke checks
+        shell: bash
+        run: |
+          npm run dev --workspace=@almacensga/api > /tmp/almacensga-api.log 2>&1 &
+          for attempt in {1..30}; do
+            curl --fail --silent http://127.0.0.1:3000/api/health && exit 0
+            sleep 1
+          done
+          cat /tmp/almacensga-api.log
+          exit 1
+      - name: HTTP smoke test
+        run: npm run test:e2e
+      - name: Performance smoke test
+        run: npm run test:perf

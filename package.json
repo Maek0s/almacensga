@@ -1,0 +1,16 @@
+{
+  "name": "almacensga",
+  "private": true,
+  "version": "0.1.0",
+  "workspaces": [
+    "apps/*"
+  ],
+  "scripts": {
+    "dev": "docker compose up --build",
+    "dev:down": "docker compose down",
+    "build": "npm run build --workspaces",
+    "lint": "npm run lint --workspaces",
+    "test:perf": "node scripts/performance-check.mjs",
+    "test:e2e": "node scripts/e2e-smoke.mjs"
+  }
+}

@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="title">
+  <title>Almacén SGA</title>
+  <defs>
+    <linearGradient id="brand" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#1769ff" />
+      <stop offset="1" stop-color="#12b8b0" />
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="16" fill="#071a35" />
+  <path d="M32 9 50 19v22L32 53 14 41V19L32 9Z" fill="none" stroke="url(#brand)" stroke-width="5" />
+  <path d="m23 26 9-6 9 6v12l-9 6-9-6V26Z" fill="url(#brand)" opacity=".92" />
+  <path d="M28 30h8v8h-8z" fill="#fff" opacity=".92" />
+</svg>

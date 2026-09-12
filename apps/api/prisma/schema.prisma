@@ -1,0 +1,648 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Client {
+  id            String         @id @default(cuid())
+  code          String         @unique
+  name          String
+  logoKey       String?
+  active        Boolean        @default(true)
+  installations Installation[]
+  users         User[]
+  queryConfigurations QueryConfiguration[]
+  pageActionConfigurations PageActionConfiguration[]
+  auditEvents   AuditEvent[]
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+}
+
+model Installation {
+  id             String              @id @default(cuid())
+  code           String
+  name           String
+  clientId       String
+  active         Boolean             @default(true)
+  city           String              @default("Madrid")
+  timezone       String              @default("Europe/Madrid")
+  environment    String              @default("Producción")
+  version        String              @default("0.1.0")
+  status         String              @default("Activa")
+  managerName    String?
+  modulesSummary String              @default("4 módulos activos")
+  lastSyncAt     DateTime?
+  client       Client              @relation(fields: [clientId], references: [id])
+  warehouses   Warehouse[]
+  assignments  UserInstallation[]
+  sessions     Session[]
+  queryConfigurations QueryConfiguration[]
+  pageActionConfigurations PageActionConfiguration[]
+  stockItems   StockItem[]
+  stockMovements StockMovement[]
+  movementRecords MovementRecord[]
+  receipts     Receipt[]
+  pickingTasks PickingTask[]
+  shipments    Shipment[]
+  locations    Location[]
+  inventoryCounts InventoryCount[]
+  replenishmentTasks ReplenishmentTask[]
+  products     Product[]
+  suppliers    Supplier[]
+  customers    Customer[]
+  integrations Integration[]
+  savedQueries SavedQuery[]
+  auditEvents  AuditEvent[]
+  workspaceRecords WorkspaceRecord[]
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+
+  @@unique([clientId, code])
+}
+
+/// Staging storage for modules being migrated from the legacy desktop system.
+/// The JSON payload preserves the configurable table contract while each module is
+/// progressively replaced by a typed domain aggregate.
+model WorkspaceRecord {
+  id             String       @id
+  installationId String
+  resource       String
+  reference      String?
+  status         String?
+  payload        Json
+  source         String       @default("SEED")
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  installation   Installation @relation(fields: [installationId], references: [id], onDelete: Cascade)
+
+  @@unique([installationId, resource, reference])
+  @@index([installationId, resource, status])
+  @@index([installationId, resource, updatedAt])
+}
+
+model Warehouse {
+  id             String       @id @default(cuid())
+  code           String
+  name           String
+  installationId String
+  active         Boolean      @default(true)
+  installation   Installation @relation(fields: [installationId], references: [id])
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@unique([installationId, code])
+}
+
+model PageActionConfiguration {
+  id             String       @id @default(cuid())
+  clientId       String
+  installationId String
+  resource       String
+  actions        Json
+  version        Int          @default(1)
+  updatedByName  String?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  client         Client       @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  installation   Installation @relation(fields: [installationId], references: [id], onDelete: Cascade)
+
+  @@unique([installationId, resource])
+  @@index([clientId, resource])
+}
+
+model Role {
+  id          String              @id @default(cuid())
+  key         String              @unique
+  name        String
+  assignments UserInstallation[]
+  permissions RolePermission[]
+}
+
+model Permission {
+  id          String           @id @default(cuid())
+  key         String           @unique
+  name        String
+  description String?
+  roles       RolePermission[]
+}
+
+model RolePermission {
+  roleId       String
+  permissionId String
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission  Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+}
+
+model User {
+  id           String              @id @default(cuid())
+  username     String              @unique
+  displayName  String
+  email        String              @unique
+  passwordHash String
+  active       Boolean             @default(true)
+  clientId     String
+  client       Client              @relation(fields: [clientId], references: [id])
+  assignments  UserInstallation[]
+  sessions     Session[]
+  stockMovements StockMovement[]
+  auditEvents  AuditEvent[]
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+}
+
+model UserInstallation {
+  userId         String
+  installationId String
+  roleId         String
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  installation   Installation @relation(fields: [installationId], references: [id], onDelete: Cascade)
+  role           Role         @relation(fields: [roleId], references: [id])
+
+  @@id([userId, installationId])
+}
+
+model Session {
+  id             String       @id @default(cuid())
+  tokenHash      String       @unique
+  userId         String
+  installationId String
+  expiresAt      DateTime
+  createdAt      DateTime     @default(now())
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  installation   Installation @relation(fields: [installationId], references: [id])
+}
+
+model RateLimitBucket {
+  key         String   @id
+  count       Int      @default(0)
+  firstAt     DateTime
+  blockedUntil DateTime?
+  updatedAt   DateTime @updatedAt
+
+  @@index([blockedUntil])
+}
+
+model StockItem {
+  id             String       @id @default(cuid())
+  installationId String
+  sku            String
+  description    String
+  lot            String
+  serialNumber   String?
+  warehouse      String
+  zone           String
+  aisle          String
+  bay            String
+  level          String
+  position       String
+  status         String
+  quantity       Int
+  available      Int
+  reserved       Int
+  minimum        Int
+  unit           String
+  expiry         String?
+  lastMovement   DateTime
+  supplier       String
+  owner          String
+  updatedBy      String
+  installation   Installation @relation(fields: [installationId], references: [id], onDelete: Cascade)
+  movements      StockMovement[]
+
+  @@unique([installationId, sku, lot, position])
+  @@index([installationId, status])
+  @@index([installationId, warehouse, zone])
+}
+
+model StockMovement {
+  id             String       @id @default(cuid())
+  installationId String
+  stockItemId    String
+  userId         String
+  type           String
+  quantity       Int
+  reason         String
+  origin         String?
+  destination    String?
+  sourceDocument String?
+  status         String       @default("CONFIRMED")
+  createdAt      DateTime     @default(now())
+  installation   Installation @relation(fields: [installationId], references: [id], onDelete: Cascade)
+  stockItem      StockItem    @relation(fields: [stockItemId], references: [id], onDelete: Cascade)
+  user           User         @relation(fields: [userId], references: [id])
+
+  @@index([installationId, createdAt])
+  @@index([stockItemId, createdAt])
+}
+
+model MovementRecord {
+  id             String       @id
+  installationId String
+  reference      String
+  type           String
+  sku            String?
+  lot            String?
+  origin         String?
+  destination    String?
+  quantity       Int          @default(0)
+  unit           String?
+  operator       String?
+  reason         String?
+  device         String?
+  status         String
+  sourceDocument String?
+  createdAt      DateTime     @default(now())
+  confirmedAt    DateTime?
+  observations   String?
+  installation   Installation @relation(fields: [installationId], references: [id], onDelete: Cascade)
+
+  @@unique([installationId, reference])
+  @@index([installationId, status])
+  @@index([installationId, createdAt])
+}
+
+model Receipt {
+  id               String       @id
+  installationId   String
+  reference        String
+  supplier         String
+  supplierDocument String?
+  purchaseOrder    String?
+  arrivalDate      DateTime?
+  scheduledDate    DateTime?
+  dock             String?
+  carrier          String?
+  warehouse        String?
+  lines            Int          @default(0)
+  units            Int          @default(0)
+  priority         String       @default("Normal")
+  status           String
+  receiver         String?
+  qualityCheck     String?
+  createdAt        DateTime     @default(now())
+  notes            String?
+  installation     Installation @relation(fields: [installationId], references: [id], onDelete: Cascade)
+
+  @@unique([installationId, reference])
+  @@index([installationId, status])
+  @@index([installationId, arrivalDate])
+}
+
+model PickingTask {
+  id             String       @id
+  installationId String
+  reference      String
+  wave           String?
+  orderNumber    String?
+  customer       String?
+  route          String?
+  priority       String       @default("Normal")
+  zone           String?
+  lines          Int          @default(0)
+  units          Int          @default(0)
+  progress       Int          @default(0)
+  picker         String?
+  status         String
+  createdAt      DateTime     @default(now())
+  dueAt          DateTime?
+  startedAt      DateTime?
+  carrier        String?
+  observations   String?
+  installation   Installation @relation(fields: [installationId], references: [id], onDelete: Cascade)
+
+  @@unique([installationId, reference])
+  @@index([installationId, status])
+  @@index([installationId, dueAt])
+}
+
+model Shipment {
+  id             String       @id
+  installationId String
+  reference      String
+  orderNumber    String?
+  customer       String?
+  shippingDate   DateTime?
+  dock           String?
+  route          String?
+  carrier        String?
+  tracking       String?
+  packages       Int          @default(0)
+  units          Int          @default(0)
+  weightKg       Float        @default(0)
+  status         String
+  operator       String?
+  service        String?
+  createdAt      DateTime     @default(now())
+  notes          String?
+  installation   Installation @relation(fields: [installationId], references: [id], onDelete: Cascade)
+
+  @@unique([installationId, reference])
+  @@index([installationId, status])
+  @@index([installationId, shippingDate])
+}
+
+model Location {
+  id             String       @id
+  installationId String
+  code           String
+  warehouse      String?
+  zone           String?
+  type           String?
+  aisle          String?
+  bay            String?
+  level          Int          @default(0)
+  position       String?
+  capacity       Int          @default(0)
+  occupied       Int          @default(0)
+  utilization    Int          @default(0)
+  status         String
+  restriction    String?
+  lastInventory  DateTime?
+  updatedBy      String?
+  updatedAt      DateTime     @updatedAt
+  installation   Installation @relation(fields: [installationId], references: [id], onDelete: Cascade)
+
+  @@unique([installationId, code])
+  @@index([installationId, status])
+  @@index([installationId, warehouse, zone])
+}
+
+model InventoryCount {
+  id             String       @id
+  installationId String
+  reference      String
+  cycle          String?
+  zone           String?
+  location       String?
+  sku            String?
+  description    String?
+  lot            String?
+  expected       Int          @default(0)
+  counted        Int          @default(0)
+  difference     Int          @default(0)
+  status         String
+  counter        String?
+  countedAt      DateTime?
+  recheck        String?
+  approvedBy     String?
+  lastCount      DateTime?
+  notes          String?
+  installation   Installation @relation(fields: [installationId], references: [id], onDelete: Cascade)
+
+  @@unique([installationId, reference])
+  @@index([installationId, status])
+  @@index([installationId, countedAt])
+}
+
+model ReplenishmentTask {
+  id             String       @id
+  installationId String
+  reference      String
+  wave           String?
+  sku            String?
+  description    String?
+  sourceLocation String?
+  targetLocation String?
+  current        Int          @default(0)
+  minimum        Int          @default(0)
+  suggested      Int          @default(0)
+  quantity       Int          @default(0)
+  unit           String?
+  priority       String       @default("Normal")
+  status         String
+  operator       String?
+  reason         String?
+  route          String?
+  createdAt      DateTime     @default(now())
+  dueAt          DateTime?
+  confirmedAt    DateTime?
+  observations   String?
+  installation   Installation @relation(fields: [installationId], references: [id], onDelete: Cascade)
+
+  @@unique([installationId, reference])
+  @@index([installationId, status])
+  @@index([installationId, dueAt])
+}
+
+model Product {
+  id             String       @id
+  installationId String
+  sku            String
+  gtin           String?
+  description    String
+  family         String?
+  category       String?
+  brand          String?
+  unit           String?
+  packSize       Int          @default(1)
+  weightKg       Float        @default(0)
+  dimensions     String?
+  lotRequired    String?
+  expiryRequired String?
+  serialRequired String?
+  supplier       String?
+  minStock       Int          @default(0)
+  maxStock       Int          @default(0)
+  leadTimeDays   Int          @default(0)
+  active         String       @default("Sí")
+  status         String
+  updatedBy      String?
+  updatedAt      DateTime     @updatedAt
+  installation   Installation @relation(fields: [installationId], references: [id], onDelete: Cascade)
+
+  @@unique([installationId, sku])
+  @@index([installationId, status])
+  @@index([installationId, supplier])
+}
+
+model Supplier {
+  id             String       @id
+  installationId String
+  code           String
+  name           String
+  legalName      String?
+  taxId          String?
+  contact        String?
+  email          String?
+  phone          String?
+  country        String?
+  city           String?
+  leadTimeDays   Int          @default(0)
+  serviceLevel   String?
+  paymentTerms   String?
+  incoterm       String?
+  openOrders     Int          @default(0)
+  lastOrder      DateTime?
+  active         String       @default("Sí")
+  status         String
+  updatedAt      DateTime     @updatedAt
+  installation   Installation @relation(fields: [installationId], references: [id], onDelete: Cascade)
+
+  @@unique([installationId, code])
+  @@index([installationId, status])
+  @@index([installationId, name])
+}
+
+model Customer {
+  id             String       @id
+  installationId String
+  code           String
+  name           String
+  legalName      String?
+  taxId          String?
+  channel        String?
+  segment        String?
+  contact        String?
+  email          String?
+  phone          String?
+  city           String?
+  country        String?
+  serviceLevel   String?
+  routes         Int          @default(0)
+  ordersMonth    Int          @default(0)
+  lastOrder      DateTime?
+  active         String       @default("Sí")
+  status         String
+  updatedAt      DateTime     @updatedAt
+  installation   Installation @relation(fields: [installationId], references: [id], onDelete: Cascade)
+
+  @@unique([installationId, code])
+  @@index([installationId, status])
+  @@index([installationId, name])
+}
+
+model Integration {
+  id               String       @id
+  installationId   String
+  code             String
+  name             String
+  type             String?
+  protocol         String
+  endpoint         String?
+  direction        String?
+  installationCode String?
+  frequency        String?
+  status           String
+  lastExecution    DateTime?
+  nextExecution    DateTime?
+  latencyMs        Int          @default(0)
+  processed        Int          @default(0)
+  failed           Int          @default(0)
+  retryPolicy      String?
+  version          String?
+  lastError        String?
+  updatedAt        DateTime     @updatedAt
+  installation     Installation @relation(fields: [installationId], references: [id], onDelete: Cascade)
+
+  @@unique([installationId, code])
+  @@index([installationId, status])
+  @@index([installationId, nextExecution])
+}
+
+model AuditEvent {
+  id             String       @id @default(cuid())
+  clientId       String
+  installationId String
+  userId         String?
+  eventType      String
+  resource       String
+  action         String
+  entityId       String?
+  details        Json?
+  outcome        String       @default("SUCCESS")
+  ipAddress      String?
+  createdAt      DateTime     @default(now())
+  client         Client       @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  installation   Installation @relation(fields: [installationId], references: [id], onDelete: Cascade)
+  user           User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([installationId, createdAt])
+  @@index([clientId, resource, action])
+}
+
+model QueryConfiguration {
+  id             String       @id @default(cuid())
+  clientId       String
+  installationId String
+  resource       String
+  name           String
+  description    String?
+  sqlText        String
+  columns        Json
+  filters        Json
+  parameters     Json          @default("[]")
+  defaultSort    String?
+  actions        Json
+  allowedRoles   Json
+  status         String       @default("DRAFT")
+  version        Int          @default(1)
+  publishedAt    DateTime?
+  updatedByName  String?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  client         Client       @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  installation   Installation @relation(fields: [installationId], references: [id], onDelete: Cascade)
+  versions       QueryConfigurationVersion[]
+
+  @@unique([installationId, resource])
+  @@index([clientId, resource])
+}
+
+model QueryConfigurationVersion {
+  id                   String            @id @default(cuid())
+  queryConfigurationId String
+  version              Int
+  payload              Json
+  createdByName        String?
+  createdAt            DateTime          @default(now())
+  configuration        QueryConfiguration @relation(fields: [queryConfigurationId], references: [id], onDelete: Cascade)
+
+  @@unique([queryConfigurationId, version])
+  @@index([queryConfigurationId, createdAt])
+}
+
+model SavedQuery {
+  id             String       @id
+  installationId String
+  code           String
+  name           String
+  category       String?
+  source         String?
+  columns        Int          @default(0)
+  filters        Int          @default(0)
+  lastRun        DateTime?
+  durationMs     Int          @default(0)
+  executions     Int          @default(0)
+  owner          String?
+  visibility     String?
+  status         String
+  updatedAt      DateTime     @updatedAt
+  installation   Installation @relation(fields: [installationId], references: [id], onDelete: Cascade)
+
+  @@unique([installationId, code])
+  @@index([installationId, status])
+  @@index([installationId, source])
+}
+
+model ToolRun {
+  id             String    @id @default(cuid())
+  clientId       String
+  installationId String
+  userId         String
+  tool           String
+  status         String    @default("COMPLETED")
+  input          Json?
+  output         Json?
+  error          String?
+  createdAt      DateTime  @default(now())
+  completedAt    DateTime?
+
+  @@index([installationId, tool, createdAt])
+  @@index([clientId, status, createdAt])
+}

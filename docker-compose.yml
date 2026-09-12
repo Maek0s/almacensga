@@ -1,0 +1,88 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-almacensga}
+      POSTGRES_USER: ${POSTGRES_USER:-almacensga}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-almacensga_dev}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-almacensga} -d ${POSTGRES_DB:-almacensga}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+      target: development
+    container_name: api
+    restart: unless-stopped
+    environment:
+      NODE_ENV: development
+      PORT: 3000
+      DATABASE_URL: postgresql://${POSTGRES_USER:-almacensga}:${POSTGRES_PASSWORD:-almacensga_dev}@postgres:5432/${POSTGRES_DB:-almacensga}?schema=public
+      INTEGRATION_EXECUTION_MODE: ${INTEGRATION_EXECUTION_MODE:-SIMULATED}
+      INTEGRATION_TIMEOUT_MS: ${INTEGRATION_TIMEOUT_MS:-10000}
+      LOGIN_RATE_LIMIT_MAX: ${LOGIN_RATE_LIMIT_MAX:-8}
+      LOGIN_RATE_LIMIT_WINDOW_MS: ${LOGIN_RATE_LIMIT_WINDOW_MS:-900000}
+      SUPPORT_WEBHOOK_URL: ${SUPPORT_WEBHOOK_URL:-}
+    ports:
+      - "3000:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/api/health').then((response) => process.exit(response.ok ? 0 : 1)).catch(() => process.exit(1))"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+    volumes:
+      - ./apps/api:/workspace/apps/api
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+      target: development
+    container_name: web
+    restart: unless-stopped
+    environment:
+      VITE_API_URL: /api
+      API_PROXY: http://api:3000
+    ports:
+      - "5173:5173"
+    depends_on:
+      - api
+    volumes:
+      - ./apps/web:/workspace/apps/web
+
+  proxy:
+    image: caddy:2-alpine
+    container_name: proxy
+    restart: unless-stopped
+    environment:
+      WEB_UPSTREAM: web:5173
+    ports:
+      - "80:80"
+    volumes:
+      - ./infra/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      web:
+        condition: service_started
+      api:
+        condition: service_healthy
+
+volumes:
+  postgres_data:
+  caddy_data:
+  caddy_config:
