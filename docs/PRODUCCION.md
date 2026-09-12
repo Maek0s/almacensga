@@ -52,10 +52,15 @@ El workflow `.github/workflows/ci.yml` ejecuta instalación limpia, esquema demo
 
 El workflow `.github/workflows/pages.yml` publica el frontend en GitHub Pages como preview. Ese enlace sirve la interfaz React, pero no ejecuta Express ni PostgreSQL: el login y las operaciones necesitan el backend publicado mediante el Compose de producción o un proveedor equivalente. GitHub Pages puede publicar desde Actions si se habilita como fuente en Settings → Pages; en repositorios privados depende del plan de GitHub.
 
-## API y base de datos gestionadas
+## API gratuita y base de datos Neon
 
-El archivo `render.yaml` define una API Docker y una base de datos PostgreSQL conectada mediante `DATABASE_URL`. Para probarlo, crea un Blueprint en Render usando este repositorio público y selecciona el plan `free`. Para producción, cambia ambos recursos a un plan con persistencia y backups: el PostgreSQL gratuito caduca a los 30 días y no ofrece backups.
+Para una instalación sin coste, `render.yaml` define únicamente la API Docker gratuita. La base de datos se aloja en Neon Free y se conecta mediante el secreto `DATABASE_URL`; así no se utiliza el PostgreSQL gratuito de Render, que caduca a los 30 días.
 
-Cuando Render entregue la URL de `almacensga-api`, crea en GitHub la variable de Actions `VITE_API_URL` con esa URL, sin añadir `/api`, y vuelve a ejecutar `Deploy frontend preview to GitHub Pages`. El frontend pasará a usar esa API en lugar del dominio de Pages.
+1. Crea un proyecto gratuito en Neon y copia su cadena de conexión de PostgreSQL. No la subas al repositorio.
+2. Crea un Blueprint en Render usando este repositorio público y añade `DATABASE_URL` en las variables de entorno del servicio `almacensga-api`.
+3. Cuando Render entregue la URL de `almacensga-api`, crea en GitHub la variable de Actions `VITE_API_URL` con esa URL, sin añadir `/api`.
+4. Vuelve a ejecutar `Deploy frontend preview to GitHub Pages`.
+
+La API ejecutará `prisma db push` antes del despliegue. El primer seed demo puede lanzarse desde el shell de Render con `npm run prisma:seed`, o desde un entorno local conectado a Neon. La API gratuita puede dormirse por inactividad, pero los datos permanecen en Neon.
 
 El repositorio público es `https://github.com/Maek0s/almacensga`. La publicación del frontend se realiza mediante GitHub Actions; el backend y PostgreSQL deben desplegarse en una infraestructura con red y persistencia.
