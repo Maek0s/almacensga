@@ -1,3 +1,5 @@
+import { apiUrl } from "./api";
+
 export type AuthSession = {
   sessionId: string;
   token: string;
@@ -27,7 +29,7 @@ const readJson = async <T>(response: Response): Promise<T | null> => {
 export const login = async (username: string, password: string): Promise<AuthSession> => {
   let response: Response;
   try {
-    response = await fetch("/api/auth/login", {
+    response = await fetch(apiUrl("/api/auth/login"), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ username, password }),
@@ -43,11 +45,11 @@ export const login = async (username: string, password: string): Promise<AuthSes
 };
 
 export const getCurrentSession = async (token: string): Promise<AuthSession> => {
-  const response = await fetch("/api/auth/me", { headers: { Authorization: `Bearer ${token}` } });
+  const response = await fetch(apiUrl("/api/auth/me"), { headers: { Authorization: `Bearer ${token}` } });
   if (!response.ok) throw new Error("Sesión no válida");
   return response.json() as Promise<AuthSession>;
 };
 
 export const logout = async (token: string) => {
-  await fetch("/api/auth/logout", { method: "POST", headers: { Authorization: `Bearer ${token}` } });
+  await fetch(apiUrl("/api/auth/logout"), { method: "POST", headers: { Authorization: `Bearer ${token}` } });
 };

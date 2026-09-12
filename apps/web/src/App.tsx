@@ -30,6 +30,7 @@ import {
   X,
 } from "lucide-react";
 import { getCurrentSession, logout, sessionStorageKey, type AuthSession } from "./auth";
+import { apiUrl } from "./api";
 import { I18nProvider, LanguageSelector, localeForLanguage, useI18n } from "./i18n";
 import { LoginPage } from "./LoginPage";
 import { classifyError, type SupportIncident } from "./error-utils";
@@ -167,14 +168,14 @@ function Dashboard({ session, onLogout }: { session: AuthSession; onLogout: () =
   }, []);
 
   useEffect(() => {
-    fetch("/api/dashboard", { headers: { Authorization: `Bearer ${session.token}` } })
+    fetch(apiUrl("/api/dashboard"), { headers: { Authorization: `Bearer ${session.token}` } })
       .then((response) => response.ok ? response.json() as Promise<{ metrics: DashboardMetrics }> : Promise.reject(new Error("Dashboard unavailable")))
       .then((body) => setMetrics(body.metrics))
       .catch(() => setDashboardMessage("No se pudieron actualizar los indicadores del dashboard."));
   }, [session.token]);
 
   useEffect(() => {
-    fetch("/api/health")
+    fetch(apiUrl("/api/health"))
       .then((response) => {
         if (!response.ok) throw new Error("API unavailable");
         setHealth("connected");

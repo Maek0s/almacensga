@@ -1,3 +1,5 @@
+import { apiUrl } from "./api";
+
 export type WorkspaceResource = "stock" | "receipts" | "picking" | "shipments" | "installations" | "locations" | "movements" | "inventory" | "queries" | "users" | "products" | "replenishment" | "suppliers" | "customers" | "integrations" | "audit" | "roles";
 
 export type WorkspaceRow = Record<string, string | number | null> & { id: string };
@@ -142,7 +144,7 @@ export async function fetchWorkspace(resource: WorkspaceResource, token: string,
     if (value !== undefined && value !== "") params.set(key, String(value));
   });
 
-  const response = await fetch(`/api/workspace/${resource}?${params.toString()}`, {
+  const response = await fetch(apiUrl(`/api/workspace/${resource}?${params.toString()}`), {
     headers: { Authorization: `Bearer ${token}` },
   });
   const body = (await response.json()) as WorkspaceResponse & { message?: string };
@@ -152,7 +154,7 @@ export async function fetchWorkspace(resource: WorkspaceResource, token: string,
 
 export async function saveInstallation(token: string, id: string, input: InstallationInput) {
   const isNew = id === "new";
-  const response = await fetch(isNew ? "/api/installations" : `/api/installations/${encodeURIComponent(id)}`, {
+  const response = await fetch(apiUrl(isNew ? "/api/installations" : `/api/installations/${encodeURIComponent(id)}`), {
     method: isNew ? "POST" : "PUT",
     headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
     body: JSON.stringify(input),
@@ -163,7 +165,7 @@ export async function saveInstallation(token: string, id: string, input: Install
 }
 
 export async function createWorkspaceRecord(resource: WorkspaceResource, token: string, payload: WorkspaceRecordInput) {
-  const response = await fetch(`/api/workspace/${resource}`, {
+  const response = await fetch(apiUrl(`/api/workspace/${resource}`), {
     method: "POST",
     headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
     body: JSON.stringify({ payload }),
@@ -174,7 +176,7 @@ export async function createWorkspaceRecord(resource: WorkspaceResource, token: 
 }
 
 export async function updateWorkspaceRecord(resource: WorkspaceResource, token: string, id: string, payload: WorkspaceRecordInput) {
-  const response = await fetch(`/api/workspace/${resource}/${encodeURIComponent(id)}`, {
+  const response = await fetch(apiUrl(`/api/workspace/${resource}/${encodeURIComponent(id)}`), {
     method: "PATCH",
     headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
     body: JSON.stringify({ payload }),
@@ -185,49 +187,49 @@ export async function updateWorkspaceRecord(resource: WorkspaceResource, token: 
 }
 
 export async function executeSqlTool(token: string, resource: WorkspaceResource, sqlText: string) {
-  const response = await fetch("/api/tools/sql/execute", { method: "POST", headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" }, body: JSON.stringify({ resource, sqlText }) });
+  const response = await fetch(apiUrl("/api/tools/sql/execute"), { method: "POST", headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" }, body: JSON.stringify({ resource, sqlText }) });
   const body = (await response.json()) as { message?: string; rowCount?: number; durationMs?: number; rows?: WorkspaceRow[] };
   if (!response.ok) throw new Error(body.message ?? "No se pudo ejecutar SQL Helper");
   return body;
 }
 
 export async function executeLoopTool(token: string, resource: WorkspaceResource, ids: string[], status: string) {
-  const response = await fetch("/api/tools/loop/execute", { method: "POST", headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" }, body: JSON.stringify({ resource, ids, status }) });
+  const response = await fetch(apiUrl("/api/tools/loop/execute"), { method: "POST", headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" }, body: JSON.stringify({ resource, ids, status }) });
   const body = (await response.json()) as { message?: string; updated?: number };
   if (!response.ok) throw new Error(body.message ?? "No se pudo ejecutar Loop Helper");
   return body;
 }
 
 export async function publishUpdater(token: string, version: string, environment: string) {
-  const response = await fetch("/api/tools/updater/publish", { method: "POST", headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" }, body: JSON.stringify({ version, environment }) });
+  const response = await fetch(apiUrl("/api/tools/updater/publish"), { method: "POST", headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" }, body: JSON.stringify({ version, environment }) });
   const body = (await response.json()) as { message?: string; version?: string };
   if (!response.ok) throw new Error(body.message ?? "No se pudo publicar la actualización");
   return body;
 }
 
 export async function importXmlTool(token: string, xml: string) {
-  const response = await fetch("/api/tools/xml/import", { method: "POST", headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" }, body: JSON.stringify({ xml }) });
+  const response = await fetch(apiUrl("/api/tools/xml/import"), { method: "POST", headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" }, body: JSON.stringify({ xml }) });
   const body = (await response.json()) as { message?: string; lineCount?: number };
   if (!response.ok) throw new Error(body.message ?? "No se pudo importar el XML");
   return body;
 }
 
 export async function runIntegration(token: string, id: string) {
-  const response = await fetch(`/api/integrations/${encodeURIComponent(id)}/run`, { method: "POST", headers: { Authorization: `Bearer ${token}` } });
+  const response = await fetch(apiUrl(`/api/integrations/${encodeURIComponent(id)}/run`), { method: "POST", headers: { Authorization: `Bearer ${token}` } });
   const body = (await response.json()) as WorkspaceRow & { message?: string };
   if (!response.ok) throw new Error(body.message ?? "No se pudo ejecutar la integración");
   return body;
 }
 
 export async function retryIntegrations(token: string) {
-  const response = await fetch("/api/integrations/retry", { method: "POST", headers: { Authorization: `Bearer ${token}` } });
+  const response = await fetch(apiUrl("/api/integrations/retry"), { method: "POST", headers: { Authorization: `Bearer ${token}` } });
   const body = (await response.json()) as { message?: string; updated?: number };
   if (!response.ok) throw new Error(body.message ?? "No se pudieron reintentar las integraciones");
   return body;
 }
 
 export async function reportSupportIncident(token: string, report: SupportIncidentReport) {
-  const response = await fetch("/api/support/incidents", {
+  const response = await fetch(apiUrl("/api/support/incidents"), {
     method: "POST",
     headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
     body: JSON.stringify(report),
@@ -244,11 +246,11 @@ const parseQueryConfigurationResponse = async (response: Response) => {
 };
 
 export async function fetchQueryConfiguration(resource: WorkspaceResource, token: string) {
-  return parseQueryConfigurationResponse(await fetch(`/api/query-configurations/${resource}`, { headers: { Authorization: `Bearer ${token}` } }));
+  return parseQueryConfigurationResponse(await fetch(apiUrl(`/api/query-configurations/${resource}`), { headers: { Authorization: `Bearer ${token}` } }));
 }
 
 export async function saveQueryConfiguration(resource: WorkspaceResource, token: string, input: QueryConfigurationInput) {
-  return parseQueryConfigurationResponse(await fetch(`/api/query-configurations/${resource}`, {
+  return parseQueryConfigurationResponse(await fetch(apiUrl(`/api/query-configurations/${resource}`), {
     method: "PUT",
     headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
     body: JSON.stringify(input),
@@ -256,14 +258,14 @@ export async function saveQueryConfiguration(resource: WorkspaceResource, token:
 }
 
 export async function publishQueryConfiguration(resource: WorkspaceResource, token: string) {
-  return parseQueryConfigurationResponse(await fetch(`/api/query-configurations/${resource}/publish`, {
+  return parseQueryConfigurationResponse(await fetch(apiUrl(`/api/query-configurations/${resource}/publish`), {
     method: "POST",
     headers: { Authorization: `Bearer ${token}` },
   }));
 }
 
 export async function createStockMovement(token: string, input: StockMovementInput) {
-  const response = await fetch("/api/stock/movements", {
+  const response = await fetch(apiUrl("/api/stock/movements"), {
     method: "POST",
     headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
     body: JSON.stringify(input),
@@ -274,14 +276,14 @@ export async function createStockMovement(token: string, input: StockMovementInp
 }
 
 export async function fetchPageActions(resource: WorkspaceResource, token: string) {
-  const response = await fetch(`/api/page-actions/${resource}`, { headers: { Authorization: `Bearer ${token}` } });
+  const response = await fetch(apiUrl(`/api/page-actions/${resource}`), { headers: { Authorization: `Bearer ${token}` } });
   const body = (await response.json()) as PageActionConfiguration & { message?: string };
   if (!response.ok) throw new Error(body.message ?? "No se pudieron cargar las acciones de la página");
   return body;
 }
 
 export async function savePageActions(resource: WorkspaceResource, token: string, actions: PageAction[]) {
-  const response = await fetch(`/api/page-actions/${resource}`, {
+  const response = await fetch(apiUrl(`/api/page-actions/${resource}`), {
     method: "PUT",
     headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
     body: JSON.stringify({ actions }),
