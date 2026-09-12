@@ -58,6 +58,16 @@ jobs:
           done
           cat /tmp/almacensga-api.log
           exit 1
+      - name: Start web for smoke checks
+        shell: bash
+        run: |
+          npm run dev --workspace=@almacensga/web > /tmp/almacensga-web.log 2>&1 &
+          for attempt in {1..30}; do
+            curl --fail --silent http://127.0.0.1:5173/ && exit 0
+            sleep 1
+          done
+          cat /tmp/almacensga-web.log
+          exit 1
       - name: HTTP smoke test
         run: npm run test:e2e
       - name: Performance smoke test
