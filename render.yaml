@@ -6,7 +6,6 @@ services:
     dockerfilePath: ./apps/api/Dockerfile
     dockerContext: .
     healthCheckPath: /api/health
-    preDeployCommand: npx prisma db push --schema /workspace/apps/api/prisma/schema.prisma
     envVars:
       - key: DATABASE_URL
         sync: false

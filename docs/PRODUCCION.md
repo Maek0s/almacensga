@@ -61,6 +61,6 @@ Para una instalación sin coste, `render.yaml` define únicamente la API Docker 
 3. Cuando Render entregue la URL de `almacensga-api`, crea en GitHub la variable de Actions `VITE_API_URL` con esa URL, sin añadir `/api`.
 4. Vuelve a ejecutar `Deploy frontend preview to GitHub Pages`.
 
-La API ejecutará `prisma db push` antes del despliegue. El primer seed demo puede lanzarse desde el shell de Render con `npm run prisma:seed`, o desde un entorno local conectado a Neon. La API gratuita puede dormirse por inactividad, pero los datos permanecen en Neon.
+El plan gratuito de Render no admite comandos `preDeploy`, así que el esquema y el seed demo deben ejecutarse una vez desde un entorno local conectado a Neon antes de iniciar sesión. La API gratuita puede dormirse por inactividad, pero los datos permanecen en Neon.
 
 El repositorio público es `https://github.com/Maek0s/almacensga`. La publicación del frontend se realiza mediante GitHub Actions; el backend y PostgreSQL deben desplegarse en una infraestructura con red y persistencia.
