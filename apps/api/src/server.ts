@@ -194,7 +194,7 @@ const getRouteResource = (resource: string | string[]) => Array.isArray(resource
 
 app.get("/api/metrics", requireSession, async (_request, response) => {
   const session = response.locals.session as SessionContext;
-  if (session.role.key !== "DEVELOPER") return response.status(403).json({ message: "Este panel está reservado al rol Developer" });
+  if (!requirePermission(session, "audit.read")) return response.status(403).json({ message: "Tu rol no puede consultar métricas" });
   const routes = Object.fromEntries(Array.from(requestMetrics.entries()).map(([route, metric]) => [route, { ...metric, averageMs: metric.count ? Math.round(metric.totalMs / metric.count) : 0 }]));
   const database = await measureDatabaseHealth();
   return response.json({ generatedAt: new Date().toISOString(), uptimeSeconds: Math.round(process.uptime()), memory: process.memoryUsage(), database, slowRequestThresholdMs, slowRequests: slowRequests.slice(0, 20), routes });
