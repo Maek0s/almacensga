@@ -456,12 +456,15 @@ async function main() {
   });
 
   const configurableResources = ["receipts", "picking", "shipments", "inventory", "movements", "queries", "locations", "products", "replenishment", "suppliers", "customers", "users", "roles", "integrations"] as const;
+  const seedColumnLabels: Record<string, string> = {
+    active: "Activo", arrivalDate: "Llegada", available: "Disponible", carrier: "Transportista", category: "Categoría", city: "Ciudad", code: "Código", createdAt: "Creado", customer: "Cliente", description: "Descripción", details: "Detalles", direction: "Dirección", displayName: "Nombre visible", dock: "Muelle", dueAt: "Vencimiento", email: "Correo electrónico", endpoint: "Endpoint", environment: "Entorno", failed: "Fallidas", filters: "Filtros", frequency: "Frecuencia", id: "ID", installation: "Instalación", lastExecution: "Última ejecución", lastOrder: "Último pedido", lastRun: "Última ejecución", latencyMs: "Latencia (ms)", leadTimeDays: "Plazo (días)", legalName: "Razón social", lines: "Líneas", location: "Ubicación", lot: "Lote", manager: "Responsable", name: "Nombre", nextExecution: "Próxima ejecución", notes: "Notas", observations: "Observaciones", openOrders: "Pedidos abiertos", operator: "Operario", order: "Pedido", owner: "Propietario", packages: "Bultos", permissions: "Permisos", phone: "Teléfono", picker: "Preparador", priority: "Prioridad", processed: "Procesados", progress: "Progreso", protocol: "Protocolo", purchaseOrder: "Pedido de compra", qualityCheck: "Control de calidad", quantity: "Cantidad", reference: "Referencia", reserved: "Reservado", retryPolicy: "Política de reintento", role: "Rol", route: "Ruta", routes: "Rutas", scheduledDate: "Planificada", serialNumber: "Nº serie", service: "Servicio", serviceLevel: "Nivel de servicio", shippingDate: "Salida", sku: "SKU", source: "Origen", status: "Estado", supplier: "Proveedor", supplierDocument: "Albarán", taxId: "NIF", timezone: "Zona horaria", tracking: "Seguimiento", type: "Tipo", unit: "Unidad", units: "Unidades", updatedAt: "Actualizado", updatedBy: "Actualizado por", username: "Usuario", users: "Usuarios", version: "Versión", visibility: "Visibilidad", warehouse: "Almacén", wave: "Ola", weightKg: "Peso (kg)", zone: "Zona",
+  };
   for (const resource of configurableResources) {
     const existing = await prisma.queryConfiguration.findUnique({ where: { installationId_resource: { installationId: installation.id, resource } } });
     if (existing) continue;
     const rows = getWorkspaceRows(resource);
     const sample = rows[0] ?? { id: "id", status: "" };
-    const columns = Object.keys(sample).map((key) => ({ key, label: key, visible: key !== "id", type: typeof sample[key] === "number" ? "number" : key === "status" ? "status" : "text", badge: key === "status" }));
+    const columns = Object.keys(sample).map((key) => ({ key, label: seedColumnLabels[key] ?? key, visible: key !== "id", type: typeof sample[key] === "number" ? "number" : key === "status" ? "status" : "text", badge: key === "status" }));
     await prisma.queryConfiguration.create({
       data: {
         clientId: client.id,

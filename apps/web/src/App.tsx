@@ -5,6 +5,7 @@ import {
   ArrowLeftRight,
   ArrowUpRight,
   AlertTriangle,
+  Activity,
   BarChart3,
   Bell,
   Boxes,
@@ -37,10 +38,11 @@ import { classifyError, type SupportIncident } from "./error-utils";
 import { SupportReportPanel } from "./SupportReportPanel";
 import { canManageConfiguration, executeLoopTool, executeSqlTool, importXmlTool, publishUpdater, type WorkspaceResource } from "./workspace";
 import { WarehouseModule } from "./WarehouseModule";
+import { DeveloperObservabilityPanel } from "./DeveloperObservabilityPanel";
 
 type Health = "checking" | "connected" | "unavailable";
 type DashboardMetrics = { stock: number; pendingReceipts: number; pickingTasks: number; shipmentsToday: number };
-type View = "dashboard" | "stock" | "receipts" | "picking" | "shipments" | "installations" | "locations" | "movements" | "inventory" | "queries" | "users" | "products" | "replenishment" | "suppliers" | "customers" | "integrations" | "audit" | "roles" | "tools";
+type View = "dashboard" | "stock" | "receipts" | "picking" | "shipments" | "installations" | "locations" | "movements" | "inventory" | "queries" | "users" | "products" | "replenishment" | "suppliers" | "customers" | "integrations" | "audit" | "roles" | "tools" | "observability";
 
 const navigation = [
   { label: "Inicio", icon: House, view: "dashboard" as View },
@@ -75,6 +77,7 @@ const viewTitles: Record<View, string> = {
   audit: "Auditoría",
   roles: "Roles y permisos",
   tools: "Herramientas",
+  observability: "Monitor del servidor",
 };
 
 const viewFromLocation = (): View => {
@@ -239,6 +242,7 @@ function Dashboard({ session, onLogout }: { session: AuthSession; onLogout: () =
           {canManageConfiguration(session.role.key) && <NavItem label={t("Roles y permisos")} icon={Users} view="roles" active={activeView === "roles"} onClick={() => navigate("roles")} />}
           {canManageConfiguration(session.role.key) && <NavItem label={t("Integraciones")} icon={Settings} view="integrations" active={activeView === "integrations"} onClick={() => navigate("integrations")} />}
           <NavItem label={t("Herramientas")} icon={Wrench} view="tools" active={activeView === "tools"} onClick={() => navigate("tools")} />
+          {session.role.key === "DEVELOPER" && <NavItem label={t("Monitor del servidor")} icon={Activity} view="observability" active={activeView === "observability"} onClick={() => navigate("observability")} />}
           </nav>
         </SidebarScrollArea>
 
@@ -271,7 +275,7 @@ function Dashboard({ session, onLogout }: { session: AuthSession; onLogout: () =
 
         <div className="mx-auto max-w-[1480px] space-y-6 p-4 sm:p-6 lg:p-8">
           {dashboardMessage && <div role="status" className="flex items-center justify-between rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800"><span>{dashboardMessage}</span><button type="button" onClick={() => setDashboardMessage("")} className="rounded p-1 font-bold hover:bg-blue-100" aria-label={t("Cerrar mensaje")}>×</button></div>}
-           {activeView !== "dashboard" ? activeView === "tools" ? <ToolsPanel key={activeView} session={session} onNavigate={navigate} onReportError={openSupport} /> : <WarehouseModule key={activeView} resource={activeView} session={session} onNavigate={navigate} onReportError={openSupport} /> : <>
+           {activeView !== "dashboard" ? activeView === "tools" ? <ToolsPanel key={activeView} session={session} onNavigate={navigate} onReportError={openSupport} /> : activeView === "observability" ? session.role.key === "DEVELOPER" ? <DeveloperObservabilityPanel key={activeView} session={session} onReportError={openSupport} /> : <AccessDeniedPanel /> : <WarehouseModule key={activeView} resource={activeView} session={session} onNavigate={navigate} onReportError={openSupport} /> : <>
           <section className="flex flex-wrap items-end justify-between gap-4">
             <div><h1 className="text-3xl font-bold tracking-tight text-ink">{t("Dashboard operativo")}</h1><p className="mt-1 text-sm text-slate-500">{t("Resumen del almacén en tiempo real")}</p></div>
             <div className="flex items-center gap-2"><div className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-600"><MapPin size={16} className="text-slate-400" />{t("Instalación")}: <strong>{session.installation.name}</strong></div></div>
@@ -389,6 +393,11 @@ function ToolDialog({ tool, session, onClose, onReportError }: { tool: ToolKey; 
 
 function NavItem({ label, icon: Icon, active = false, onClick }: { label: string; icon: LucideIcon; view: View; active?: boolean; onClick?: () => void }) {
   return <button type="button" onClick={onClick} className={`flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm transition ${active ? "bg-brand font-semibold text-white shadow-lg shadow-blue-950/20" : "text-slate-300 hover:bg-white/10 hover:text-white"}`}><Icon size={17} strokeWidth={active ? 2.4 : 1.8} /><span>{label}</span></button>;
+}
+
+function AccessDeniedPanel() {
+  const { t } = useI18n();
+  return <section role="alert" className="rounded-2xl border border-amber-200 bg-amber-50 p-6 text-amber-900"><div className="flex items-start gap-3"><AlertTriangle size={20} className="mt-0.5 shrink-0" /><div><h1 className="font-bold">{t("Panel reservado")}</h1><p className="mt-1 text-sm">{t("Este monitor está disponible únicamente para usuarios Developer.")}</p></div></div></section>;
 }
 
 function Metric({ title, value, unit, icon: Icon, color }: { title: string; value: string; unit?: string; icon: LucideIcon; color: "blue" | "teal" }) {

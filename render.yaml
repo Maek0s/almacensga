@@ -19,3 +19,5 @@ services:
         value: "8"
       - key: LOGIN_RATE_LIMIT_WINDOW_MS
         value: "900000"
+      - key: SLOW_REQUEST_THRESHOLD_MS
+        value: "1000"

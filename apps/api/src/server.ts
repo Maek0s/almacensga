@@ -16,6 +16,9 @@ const sessionDurationMs = 8 * 60 * 60 * 1000;
 const loginAttemptWindowMs = Math.max(60_000, Number(process.env.LOGIN_RATE_LIMIT_WINDOW_MS ?? 15 * 60 * 1000));
 const loginAttemptLimit = Math.max(3, Number(process.env.LOGIN_RATE_LIMIT_MAX ?? 8));
 const requestMetrics = new Map<string, { count: number; errors: number; totalMs: number; maxMs: number }>();
+const slowRequestThresholdMs = Math.max(250, Number(process.env.SLOW_REQUEST_THRESHOLD_MS ?? 1000));
+type SlowRequestMetric = { method: string; path: string; statusCode: number; durationMs: number; completedAt: string; requestId: string };
+const slowRequests: SlowRequestMetric[] = [];
 
 app.use(cors({ origin: true }));
 app.use(express.json({ limit: "1mb" }));
@@ -24,11 +27,15 @@ app.use((request, response, next) => {
   const requestId = request.header("x-request-id")?.slice(0, 120) || randomBytes(8).toString("hex");
   response.setHeader("X-Request-ID", requestId);
   response.on("finish", () => {
-    const route = request.route?.path ?? request.path;
+    const route = String(request.route?.path ?? request.path);
     const key = `${request.method} ${route}`;
     const durationMs = Date.now() - startedAt;
     const previous = requestMetrics.get(key) ?? { count: 0, errors: 0, totalMs: 0, maxMs: 0 };
     requestMetrics.set(key, { count: previous.count + 1, errors: previous.errors + (response.statusCode >= 500 ? 1 : 0), totalMs: previous.totalMs + durationMs, maxMs: Math.max(previous.maxMs, durationMs) });
+    if (durationMs >= slowRequestThresholdMs) {
+      slowRequests.unshift({ method: request.method, path: route, statusCode: response.statusCode, durationMs, completedAt: new Date().toISOString(), requestId });
+      if (slowRequests.length > 50) slowRequests.length = 50;
+    }
   });
   next();
 });
@@ -99,6 +106,16 @@ const clearLoginFailures = async (key: string) => {
   await prisma.rateLimitBucket.deleteMany({ where: { key } });
 };
 
+const measureDatabaseHealth = async () => {
+  const startedAt = Date.now();
+  try {
+    await prisma.$queryRaw`SELECT 1`;
+    return { status: "connected" as const, latencyMs: Date.now() - startedAt };
+  } catch {
+    return { status: "unavailable" as const, latencyMs: null };
+  }
+};
+
 const requireSession = async (request: Request, response: Response, next: NextFunction) => {
   const token = getBearerToken(request);
   if (!token) return response.status(401).json({ message: "Sesión no encontrada" });
@@ -111,12 +128,9 @@ const requireSession = async (request: Request, response: Response, next: NextFu
 };
 
 app.get("/api/health", async (_request, response) => {
-  try {
-    await prisma.$queryRaw`SELECT 1`;
-    response.json({ status: "ok", service: "api", database: "connected", timestamp: new Date().toISOString() });
-  } catch {
-    response.status(503).json({ status: "degraded", service: "api", database: "unavailable", timestamp: new Date().toISOString() });
-  }
+  const database = await measureDatabaseHealth();
+  const healthy = database.status === "connected";
+  response.status(healthy ? 200 : 503).json({ status: healthy ? "ok" : "degraded", service: "api", database: database.status, latencyMs: database.latencyMs, timestamp: new Date().toISOString() });
 });
 
 app.post("/api/auth/login", async (request, response) => {
@@ -178,11 +192,12 @@ const storedWorkspaceResources = new Set(["receipts", "picking", "shipments", "l
 const typedWorkspaceResources = new Set(["receipts", "picking", "shipments", "locations", "inventory", "replenishment", "products", "suppliers", "customers", "integrations", "movements", "queries", "users", "roles"]);
 const getRouteResource = (resource: string | string[]) => Array.isArray(resource) ? resource[0] : resource;
 
-app.get("/api/metrics", requireSession, (_request, response) => {
+app.get("/api/metrics", requireSession, async (_request, response) => {
   const session = response.locals.session as SessionContext;
-  if (!requirePermission(session, "audit.read")) return response.status(403).json({ message: "Tu rol no puede consultar métricas" });
+  if (session.role.key !== "DEVELOPER") return response.status(403).json({ message: "Este panel está reservado al rol Developer" });
   const routes = Object.fromEntries(Array.from(requestMetrics.entries()).map(([route, metric]) => [route, { ...metric, averageMs: metric.count ? Math.round(metric.totalMs / metric.count) : 0 }]));
-  return response.json({ generatedAt: new Date().toISOString(), uptimeSeconds: Math.round(process.uptime()), memory: process.memoryUsage(), routes });
+  const database = await measureDatabaseHealth();
+  return response.json({ generatedAt: new Date().toISOString(), uptimeSeconds: Math.round(process.uptime()), memory: process.memoryUsage(), database, slowRequestThresholdMs, slowRequests: slowRequests.slice(0, 20), routes });
 });
 
 type InstallationInput = {
@@ -1077,7 +1092,7 @@ app.get("/api/workspace/:resource", requireSession, async (request, response) =>
   const search = String(request.query.search ?? "").trim().toLowerCase();
   const status = String(request.query.status ?? "all");
   const page = Math.max(1, Number(request.query.page ?? 1));
-  const pageSize = Math.min(100, Math.max(10, Number(request.query.pageSize ?? 50)));
+  const pageSize = Math.min(100, Math.max(10, Number(request.query.pageSize ?? 35)));
   const sortBy = String(request.query.sortBy ?? "");
   const sortDir = request.query.sortDir === "desc" ? -1 : 1;
 

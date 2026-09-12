@@ -25,6 +25,18 @@ export type WorkspaceQuery = {
   sortDir?: "asc" | "desc";
 };
 
+export type RouteMetric = { count: number; errors: number; totalMs: number; averageMs: number; maxMs: number };
+export type SlowRequestMetric = { method: string; path: string; statusCode: number; durationMs: number; completedAt: string; requestId: string };
+export type ServerMetrics = {
+  generatedAt: string;
+  uptimeSeconds: number;
+  memory: { rss: number; heapTotal: number; heapUsed: number; external: number };
+  database: { status: "connected" | "unavailable"; latencyMs: number | null };
+  slowRequestThresholdMs: number;
+  slowRequests: SlowRequestMetric[];
+  routes: Record<string, RouteMetric>;
+};
+
 export type SupportIncidentReport = {
   code: string;
   title: string;
@@ -149,6 +161,13 @@ export async function fetchWorkspace(resource: WorkspaceResource, token: string,
   });
   const body = (await response.json()) as WorkspaceResponse & { message?: string };
   if (!response.ok) throw new Error(body.message ?? "No se pudo cargar el módulo");
+  return body;
+}
+
+export async function fetchDeveloperMetrics(token: string) {
+  const response = await fetch(apiUrl("/api/metrics"), { headers: { Authorization: `Bearer ${token}` } });
+  const body = (await response.json()) as ServerMetrics & { message?: string };
+  if (!response.ok) throw new Error(body.message ?? "No se pudieron cargar las métricas del servidor");
   return body;
 }
 
