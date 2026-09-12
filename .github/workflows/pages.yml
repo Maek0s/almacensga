@@ -32,6 +32,7 @@ jobs:
       - name: Build frontend preview
         env:
           VITE_BASE_PATH: /almacensga/
+          VITE_API_URL: ${{ vars.VITE_API_URL }}
         run: npm run build --workspace=@almacensga/web
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v4
